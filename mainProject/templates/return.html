@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech Recognition</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        #controls {
+            margin: 20px 0;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #output {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+            color: #333;
+            padding: 10px;
+            background-color: white;
+            display: inline-block;
+            border-radius: 8px;
+            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #matched-words {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .word-container {
+            background: white;
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px;
+            text-align: center;
+            box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .word-container:hover {
+            transform: scale(1.05);
+        }
+
+        .word-container img {
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .word-container p {
+            margin: 8px 0 0;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Speech to Text</h1>
+    
+    <div id="controls">
+        <button id="start-btn">🎤 Start Listening</button>
+        <button id="stop-btn">⏹ Stop Listening</button>
+    </div>
+
+    <p><strong>Recognized Text:</strong> <span id="output">Waiting for input...</span></p>
+
+    <div id="matched-words"></div>
+
+    <script>
+        $(document).ready(function() {
+            $("#start-btn").click(function() {
+                $("#output").text("🎤 Listening...");
+                $("#matched-words").empty(); // Clear previous matched words
+
+                $.ajax({
+                    url: "/start_voice",
+                    type: "POST",
+                    success: function(response) {
+                        console.log("Response:", response); // Debugging
+
+                        if (response.recognized_text) {
+                            $("#output").text(response.recognized_text);
+
+                            // Display all words and images (if available)
+                            response.matched_words.forEach(function(item) {
+                                let wordContainer = $("<div>").addClass("word-container");
+                                
+                                if (item.image) {
+                                    let image = $("<img>").attr("src", item.image);
+                                    wordContainer.append(image);
+                                    let word = $("<p>").text(item.word);
+                                    wordContainer.append(word);
+
+                                    $("#matched-words").append(wordContainer);
+                                }
+                                
+                                
+                            });
+                        } else {
+                            $("#output").text("⚠️ No speech detected.");
+                        }
+                    },
+                    error: function(error) {
+                        console.error("Error:", error);
+                        $("#output").text("❌ Error occurred while listening.");
+                    }
+                });
+            });
+
+            $("#stop-btn").click(function() {
+                $.ajax({
+                    url: "/stop_voice",
+                    type: "POST",
+                    success: function(response) {
+                        console.log(response.message);
+                    },
+                    error: function(error) {
+                        console.error("Error:", error);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

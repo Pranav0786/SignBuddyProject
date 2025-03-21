@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Language Detection</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 1200px;
+        }
+
+        #videoSection, #textSection {
+            flex: 1;
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            margin: 10px;
+        }
+
+        #videoFeed {
+            width: 100%;
+            border-radius: 10px;
+            border: 3px solid #007bff;
+        }
+
+        #wordsList, #sentenceDisplay {
+            font-size: 1.5rem;
+            margin-top: 10px;
+            min-height: 50px;
+            padding: 15px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            font-weight: bold;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 15px;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #playVoiceBtn {
+            display: none;
+            background-color: #28a745;
+        }
+
+        #playVoiceBtn:hover {
+            background-color: #218838;
+        }
+
+        #resetTextBtn, #recaptureSignBtn {
+            background-color: #dc3545;
+        }
+
+        #resetTextBtn:hover, #recaptureSignBtn:hover {
+            background-color: #c82333;
+        }
+
+        #voiceToTextBtn {
+            background-color: #ffc107;
+            color: black;
+        }
+
+        #voiceToTextBtn:hover {
+            background-color: #e0a800;
+        }
+
+        @media (max-width: 768px) {
+            #container {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Sign Language Detection</h1>
+    <div id="container">
+        <div id="videoSection">
+            <h2>Live Video Feed</h2>
+            <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="Video Stream">
+            <button id="recaptureSignBtn" onclick="recaptureSign()">🔄 Recapture Sign</button>
+        </div>
+        <div id="textSection">
+            <h2>Detected Words</h2>
+            <div id="wordsList">Waiting for detection...</div>
+            <button onclick="convertToSentence()">Convert to Sentence</button>
+            <button id="resetTextBtn" onclick="resetText()">Reset Text</button>
+            
+            <h2>Generated Sentence</h2>
+            <div id="sentenceDisplay">No sentence generated yet.</div>
+            <button id="playVoiceBtn" onclick="playVoice()">🔊 Play Voice</button>
+            
+            <h2>Voice to Text</h2>
+            <button id="voiceToTextBtn" onclick="startVoiceRecognition()">🎤 Start Voice Recognition</button>
+        </div>
+    </div>
+    <script>
+        async function fetchWords() {
+            try {
+                const response = await fetch("/get_words");
+                const data = await response.json();
+                document.getElementById("wordsList").innerText = data.words.join(" ") || "Waiting for detection...";
+            } catch (error) {
+                console.error("Error fetching words:", error);
+            }
+        }
+
+        async function convertToSentence() {
+            try {
+                // Show a loading indicator (optional)
+                document.getElementById("sentenceDisplay").innerText = "Generating sentence...";
+                document.getElementById("playVoiceBtn").style.display = "none";
+
+                // Send a POST request to the server
+                const response = await fetch("/convert_sentence", { method: "POST" });
+
+                // Check if the response is OK (status code 200-299)
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Failed to generate sentence.");
+                }
+
+                // Parse the response data
+                const data = await response.json();
+
+                // Update the UI with the generated sentence
+                document.getElementById("sentenceDisplay").innerText = data.sentence || "No sentence generated.";
+                document.getElementById("playVoiceBtn").style.display = "inline-block";
+            } catch (error) {
+                // Handle errors and display a user-friendly message
+                console.error("Error converting sentence:", error);
+                document.getElementById("sentenceDisplay").innerText = "Error: " + error.message;
+                document.getElementById("playVoiceBtn").style.display = "none";
+            }
+        }
+
+        async function playVoice() {
+            try {
+                const response = await fetch("/play_audio", { method: "POST" });
+                const data = await response.json();
+                if (data.audio) {
+                    new Audio(data.audio).play();
+                }
+            } catch (error) {
+                console.error("Error playing audio:", error);
+            }
+        }
+
+        async function startVoiceRecognition() {
+            try {
+                const response = await fetch("/speech-to-text");
+                const data = await response.json();
+                document.getElementById("wordsList").innerText = data.recognized_text || "Could not recognize speech.";
+            } catch (error) {
+                console.error("Error recognizing speech:", error);
+            }
+        }
+
+        function recaptureSign() {
+            fetch("/reset_words", { method: "POST" });
+            document.getElementById("wordsList").innerText = "Waiting for detection...";
+        }
+
+        function resetText() {
+            document.getElementById("wordsList").innerText = "Waiting for detection...";
+            document.getElementById("sentenceDisplay").innerText = "No sentence generated yet.";
+            document.getElementById("playVoiceBtn").style.display = "none";
+        }
+
+        setInterval(fetchWords, 500);
+    </script>
+</body>
+</html>
